@@ -1,4 +1,8 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using UnityEngine;
 
 // Container for a simple debug entry
 namespace IngameDebugConsole
@@ -18,22 +22,24 @@ namespace IngameDebugConsole
 		// Collapsed count
 		public int count;
 
-		private int hashValue;
+		private byte[] hashValue;
 
-		public void Initialize( string logString, string stackTrace )
+		private static MD5 Md5 = MD5.Create();
+
+        public void Initialize( string logString, string stackTrace )
 		{
 			this.logString = logString;
 			this.stackTrace = stackTrace;
 
 			completeLog = null;
 			count = 1;
-			hashValue = HASH_NOT_CALCULATED;
+			hashValue = null;
 		}
 
 		// Check if two entries have the same origin
 		public bool Equals( DebugLogEntry other )
 		{
-			return this.logString == other.logString && this.stackTrace == other.stackTrace;
+			return GetMD5Hash().SequenceEqual(other.GetMD5Hash());
 		}
 
 		// Checks if logString or stackTrace contains the search term
@@ -52,17 +58,16 @@ namespace IngameDebugConsole
 			return completeLog;
 		}
 
-		// Credit: https://stackoverflow.com/a/19250516/2373034
 		public override int GetHashCode()
 		{
-			if( hashValue == HASH_NOT_CALCULATED )
+			return BitConverter.ToInt32(GetMD5Hash(), 0);
+		}
+
+		public byte[] GetMD5Hash()
+		{
+			if (hashValue == null)
 			{
-				unchecked
-				{
-					hashValue = 17;
-					hashValue = hashValue * 23 + logString == null ? 0 : logString.GetHashCode();
-					hashValue = hashValue * 23 + stackTrace == null ? 0 : stackTrace.GetHashCode();
-				}
+				hashValue = Md5.ComputeHash(Encoding.ASCII.GetBytes(logString + stackTrace));
 			}
 
 			return hashValue;
